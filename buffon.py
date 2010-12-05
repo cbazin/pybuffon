@@ -31,14 +31,12 @@ Random_atomic = Random_atomic()
 def Random_python():
   return random.randint(0,1)
   
-randomBit = Random_atomic
+randomBit = Random_python
 
 class Buffon:
   allMachines = []
   def __init__(self, *args):
     self.machines = args
-    self.vars = None
-    self.cpt = 0
     if self.__class__ not in Buffon.allMachines:
       self.__class__.CPT = 0
       Buffon.allMachines.append(self.__class__)
@@ -53,22 +51,18 @@ class Buffon:
     pass
   def __call__(self):
     self.__class__.CPT += 1
-    self.cpt += 1
     return self.call()
   def call(self):
     return self.core(*self.machines)()
   def toLatex(self):
-    subMachines = tuple(m.toLatex() for m in self.machines)
-    return r'\{%s\}' %(self.latex(*subMachines))
+    return r'\{%s\}' %(self.latex(*list(m.toLatex() for m in self.machines)))
   def toExpr(self):
-    subMachines = tuple(m.toExpr() for m in self.machines)
-    return '(%s)' %(self.expr(*subMachines))
+    return '(%s)' %(self.expr(*list(m.toExpr() for m in self.machines)))
 
 class FLIP(Buffon):
   def toExpr(s): return '0.5'
   def toLatex(s): return r'\frac{1}{2}'
-  def call(self):
-    return randomBit()
+  def call(self): return randomBit()
 FLIP = FLIP()
 
 class ONE(Buffon):
@@ -95,7 +89,7 @@ class MUL(Buffon):
   def core(s, m1, m2):
     return COND(m1, m2, ZERO)
 
-class f_or(Buffon):
+class F_OR(Buffon):
   def expr(s, m1, m2): return '%s+%s-%s*%s'%(m1, m2, m1, m2)
   def latex(s, m1, m2): return r'%s+%s+%s\ %s'%(m1, m2, m1, m2)
   def core(s, m1, m2):
@@ -111,7 +105,7 @@ class HALF_SUM(Buffon):
   def expr(s, m1, m2): return '(%s+%s)/2'%(m1, m2)
   def latex(s, m1, m2): return r'\frac{%s+%s}{2}'%(m1, m2)
   def core(s, m1, m2):
-    return COND(FLIP(), m1, m2)
+    return COND(FLIP, m1, m2)
 
 class HALF(Buffon):
   def expr(s, m1): return '%s/2'%(m1)
@@ -148,7 +142,7 @@ class BAG(Buffon):
   def geo_half(s, j=0):
     j = 0
     while 1:
-      if randomBit():
+      if FLIP():
         return j
       j += 1
   def __str__(s):
@@ -157,9 +151,7 @@ class BAG(Buffon):
   def call(s):
     idx = s.geo_half()
     if (s.B.get(idx) is None):
-      f = randomBit()
-      s.B[idx] = f
-      #print "=>", idx, f, s
+      s.B[idx] = FLIP()
     return s.B[idx]
 
 class EVENP(Buffon):
@@ -185,15 +177,12 @@ class MGL_PI_4(Buffon):
   def expr(s): return 'math.pi/4'
   def latex(s): return '\pi/4'
   def call(s):
-    #print 'hit', s.b
-    b = BAG()
-    print '***'
     while 1:
-      print s.b
       if s.b() == 0: return 1
       if s.b() == 0: return 1
       if s.b() == 0: return 0
       if s.b() == 0: return 0
+    #print 'hit', s.b
     #return COND(s.b, COND(s.b, COND(s.b, COND(s.b, s, ZERO), ZERO) , ONE), ONE) 
 
 def stats(name, lst):
@@ -218,26 +207,20 @@ def run(machine, N=10000, S=5):
     s = 0
     flipsCpt = []
     condsCpt = []
-    N2 = 0
     for _ in xrange(N):
-      #COND.CPT = 0
-      #FLIP.CPT = 0
+      COND.CPT = 0
+      FLIP.CPT = 0
       machine.reset()
-      try:
-        s += machine()
-        N2 += 1
-      except:
-        pass
-      #print '-----------'
-      #flipsCpt.append(FLIP.CPT)
-      #condsCpt.append(COND.CPT)
-    res = s / float(N2)
+      s += machine()
+      flipsCpt.append(FLIP.CPT)
+      condsCpt.append(COND.CPT)
+    res = s / float(N)
     dev = (res / val - 1) * 100
     print 'Simulation :', id
     print '     result :', res
     print '       %dev :', dev
-    #stats('flips', flipsCpt)
-    #stats('conds', condsCpt)
+    stats('flips', flipsCpt)
+    stats('conds', condsCpt)
     if not abs(dev) <= 5:
       print "WARNING"
   return res
@@ -255,8 +238,8 @@ run(machine, 1, 1)
 
 PI_8 = HALF_SUM(ATAN(HALF(ONE)), ATAN(THIRD(ONE)))
 
-run(MGL_PI_4(), 1000, 1)
-#run(PI_8, 5000)
+run(MGL_PI_4(), 10000, 1)
+run(PI_8, 10000, 1)
 #run(LOG_INCR(flip), 5000)
 #run(EVENP(HALF(ONE)), 10000)
 #run(ATAN(THIRD(ONE)), 5000)
