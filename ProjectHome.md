@@ -1,0 +1,1 @@
+For more details, see : http://algo.inria.fr/flajolet/Publications/FlPeSo11.pdf
